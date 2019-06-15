@@ -51,7 +51,9 @@ class ConvolutionalBlock(nn.Module):
             if activation:
                 layers.append(nn.ReLU())
 
-        layers.append(padding_instance)
+        if kernel_size > 1:
+            layers.append(padding_instance)
+
         conv_layer = conv_class(
             in_channels,
             out_channels,
@@ -63,7 +65,7 @@ class ConvolutionalBlock(nn.Module):
 
         if not preactivation:
             if batch_norm or instance_norm:
-                layers.append(norm_class(in_channels))
+                layers.append(norm_class(out_channels))
             if activation:
                 layers.append(nn.ReLU())
 
@@ -195,13 +197,6 @@ class HighResNet(nn.Module):
         self.residual_blocks_per_dilation = residual_blocks_per_dilation
         self.dilations = dilations
 
-        if dimensions == 2:
-            padding_class = getattr(nn, f'{PADDING_MODES[padding_mode]}Pad2d')
-            padding_instance = padding_class(1)
-        elif dimensions == 3:
-            padding_instance = Pad3d(1, padding_mode)
-        conv_class = nn.Conv2d if dimensions == 2 else nn.Conv3d
-
         # List of blocks
         blocks = nn.ModuleList()
 
@@ -211,7 +206,7 @@ class HighResNet(nn.Module):
             in_channels=self.in_channels,
             out_channels=initial_out_channels,
             dilation=1,
-            dimensions=3,
+            dimensions=dimensions,
             batch_norm=batch_norm,
             instance_norm=instance_norm,
             preactivation=False,
@@ -247,7 +242,7 @@ class HighResNet(nn.Module):
                 in_channels=in_channels,
                 out_channels=out_channels,
                 dilation=1,
-                dimensions=3,
+                dimensions=dimensions,
                 batch_norm=batch_norm,
                 instance_norm=instance_norm,
                 preactivation=False,
@@ -261,7 +256,7 @@ class HighResNet(nn.Module):
             in_channels=out_channels,
             out_channels=self.out_channels,
             dilation=1,
-            dimensions=3,
+            dimensions=dimensions,
             batch_norm=batch_norm,
             instance_norm=instance_norm,
             preactivation=False,
