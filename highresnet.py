@@ -18,8 +18,7 @@ class Pad3d(nn.Module):
         self.mode = mode
 
     def forward(self, x):
-        out = F.pad(x, self.pad, self.mode)
-        return out
+        return F.pad(x, self.pad, self.mode)
 
 
 class ConvolutionalBlock(nn.Module):
@@ -72,8 +71,7 @@ class ConvolutionalBlock(nn.Module):
         self.convolutional_block = nn.Sequential(*layers)
 
     def forward(self, x):
-        out = self.convolutional_block(x)
-        return out
+        return self.convolutional_block(x)
 
 
 class ResidualBlock(nn.Module):
@@ -116,13 +114,16 @@ class ResidualBlock(nn.Module):
         From the original ResNet paper, page 4:
 
         "When the dimensions increase, we consider two options:
-        (A) The shortcut stillvperforms identity mapping,
-        with extra zero entries padded
-        for increasing dimensions. This option introduces no extra
-        parameter; (B) The projection shortcut in Eqn.(2) is used to
-        match dimensions (done by 1×1 convolutions). For both
-        options, when the shortcuts go across feature maps of two
-        sizes, they are performed with a stride of 2."
+
+        (A) The shortcut still performs identity mapping,
+        with extra zero entries padded for increasing dimensions.
+        This option introduces no extra parameter
+
+        (B) The projection shortcut in Eqn.(2) is used to
+        match dimensions (done by 1×1 convolutions).
+
+        For both options, when the shortcuts go across feature maps of
+        two sizes, they are performed with a stride of 2."
         """
         out = self.residual_block(x)
         if self.residual:
@@ -132,13 +133,13 @@ class ResidualBlock(nn.Module):
                 elif self.residual_type == 'pad':
                     if self.dimensions == 2:
                         N, _, H, W = x.shape
-                        pad = out.shape[1] - x.shape[1]  # diff of channels
-                        zeros = x.new_zeros(N, pad, H, W)
+                        diff = out.shape[1] - x.shape[1]  # diff of channels
+                        zeros = x.new_zeros(N, diff, H, W)
                     elif self.dimensions == 3:
                         N, _, D, H, W = x.shape
-                        pad = out.shape[1] - x.shape[1]  # diff of channels
-                        zeros = x.new_zeros(N, pad, D, H, W)
-                    x = torch.cat((x, zeros), dim=1)  # channels dimension
+                        diff = out.shape[1] - x.shape[1]  # diff of channels
+                        zeros_half = x.new_zeros(N, diff // 2, D, H, W)
+                    x = torch.cat((zeros_half, x, zeros_half), dim=1)  # channels dimension
             out = x + out
         return out
 
@@ -167,8 +168,7 @@ class DilationBlock(nn.Module):
         self.dilation_block = nn.Sequential(*residual_blocks)
 
     def forward(self, x):
-        out = self.dilation_block(x)
-        return out
+        return self.dilation_block(x)
 
 
 class HighResNet(nn.Module):
@@ -271,8 +271,7 @@ class HighResNet(nn.Module):
         self.block = nn.Sequential(*blocks)
 
     def forward(self, x):
-        out = self.block(x)
-        return out
+        return self.block(x)
 
     @property
     def num_parameters(self):
