@@ -1,6 +1,17 @@
 import re
+from collections import OrderedDict
+
+import torch
+import pandas as pd
+from tqdm import tqdm
+import tensorflow as tf
 
 def tf2pt_name(name_tf):
+    """
+    Return the equivalent PyTorch parameter name of the TensorFlow
+    variable. Rules have been created from visual inspection of the
+    variables lists.
+    """
     param_type_dict = {
         'w': 'weight',
         'gamma': 'weight',
@@ -10,7 +21,7 @@ def tf2pt_name(name_tf):
     }
     
     if name_tf.startswith('res_'):
-        # res_2_0/bn_0/moving_variance
+        # For example: 'res_2_0/bn_0/moving_variance'
         pattern = (
             'res'
             r'_(\d)'  # 2 dil_idx
@@ -41,7 +52,7 @@ def tf2pt_name(name_tf):
             'conv_1_bn_relu/bn_/moving_mean': 'block.4.convolutional_block.1.running_mean',
             'conv_1_bn_relu/bn_/moving_variance': 'block.4.convolutional_block.1.running_var',
 
-            'conv_2_bn/conv_/w': 'block.6.convolutional_block.0.weight',  # layer with dropout
+            'conv_2_bn/conv_/w': 'block.6.convolutional_block.0.weight',  # classifier
             'conv_2_bn/bn_/gamma': 'block.6.convolutional_block.1.weight',  
             'conv_2_bn/bn_/beta': 'block.6.convolutional_block.1.bias',
             'conv_2_bn/bn_/moving_mean': 'block.6.convolutional_block.1.running_mean',
@@ -59,3 +70,44 @@ def tf2pt(name_tf, tensor_tf):
     elif num_dimensions == 5:
         tensor_pt = tensor_tf.permute(4, 3, 0, 1, 2)
     return name_pt, tensor_pt
+
+
+def is_not_valid(variable_name, shape):
+    exclusion_criteria = (
+        'Adam' in variable_name,  # used for training
+        'biased' in variable_name,  # unused
+        not shape,  # empty variables
+        'ExponentialMovingAverage' in variable_name,  # unused by NiftyNet model zoo
+    )
+    return any(exclusion_criteria)
+
+
+def checkpoint_to_state_dict(checkpoint_path, filter_variables=True):
+    tf.reset_default_graph()
+
+    rows = []
+    variables_dict = OrderedDict()
+    variables_list = tf.train.list_variables(str(checkpoint_path))
+    for name, shape in variables_list:
+        if filter_variables and is_not_valid(name, shape):
+            continue
+        variables_dict[name] = tf.get_variable(name, shape=shape)
+        name = name.replace('HighRes3DNet/', '')
+        shape = ', '.join(str(n) for n in shape)
+        row = {'name': name, 'shape': shape}
+        rows.append(row)
+    data_frame = pd.DataFrame.from_dict(rows)
+    
+    saver = tf.train.Saver()
+    state_dict = {}
+    with tf.Session() as sess:
+        print('Restoring session...')
+        saver.restore(sess, str(checkpoint_path))
+        for name, shape in tqdm(variables_list):
+            if filter_variables and is_not_valid(name, shape):
+                continue
+            array = variables_dict[name].eval()
+            name = name.replace('HighRes3DNet/', '')
+            state_dict[name] = torch.tensor(array)
+    
+    return data_frame, state_dict
