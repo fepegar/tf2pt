@@ -6,6 +6,7 @@ import pandas as pd
 from tqdm import tqdm
 import tensorflow as tf
 
+
 def tf2pt_name(name_tf):
     """
     Return the equivalent PyTorch parameter name of the TensorFlow
@@ -101,9 +102,8 @@ def checkpoint_to_state_dict(checkpoint_path, filter_variables=True):
     saver = tf.train.Saver()
     state_dict = {}
     with tf.Session() as sess:
-        print('Restoring session...')
         saver.restore(sess, str(checkpoint_path))
-        for name, shape in tqdm(variables_list):
+        for name, shape in variables_list:
             if filter_variables and is_not_valid(name, shape):
                 continue
             array = variables_dict[name].eval()
