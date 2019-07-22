@@ -6,4 +6,5 @@ pandas
 nibabel
 torch
 torchsummary
-
+highresnet
+seaborn
