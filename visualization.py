@@ -6,7 +6,7 @@ from skimage.exposure import rescale_intensity
 
 sns.set(context='notebook')
 
-def plot_parameters(model, name, title=None, axis=None):
+def plot_parameters(model, name, title=None, axis=None, kde=True, bw=None):
     for name_, params in model.named_parameters():
         if name_ == name:
             tensor = params.data
@@ -16,19 +16,22 @@ def plot_parameters(model, name, title=None, axis=None):
     array = tensor.numpy().ravel()
     if axis is None:
         fig, axis = plt.subplots()
-    sns.distplot(array, hist=False, ax=axis)
+    if bw is None:
+        sns.distplot(array, ax=axis, kde=kde)
+    else:
+        sns.kdeplot(array, ax=axis, bw=bw)
     if title is not None:
         ax.set_title(title)
 
         
-def plot_all_parameters(model, labelsize=6):
+def plot_all_parameters(model, labelsize=6, kde=True, bw=None):
     fig, axes = plt.subplots(3, 7, figsize=(11, 5))
     axes = list(reversed(axes.ravel()))
     for name, params in model.named_parameters():
         if len(params.data.shape) < 2:
             continue
         axis = axes.pop()
-        plot_parameters(model, name, axis=axis)
+        plot_parameters(model, name, axis=axis, kde=kde, bw=bw)
         axis.xaxis.set_tick_params(labelsize=labelsize)
     plt.tight_layout()
 
@@ -63,3 +66,7 @@ def plot_volume(array, enhance=True):
         axis.imshow(turn(slice_), cmap=cmap)
         axis.grid(False)
     plt.tight_layout()
+
+    
+def plot_histogram(array, kde=True):
+    sns.distplot(array.ravel(), kde=kde)

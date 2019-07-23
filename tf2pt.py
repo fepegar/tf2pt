@@ -2,9 +2,67 @@ import re
 from collections import OrderedDict
 
 import torch
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import tensorflow as tf
+
+
+DIM_NN = {
+    'batch': 0,
+    'depth': 1,
+    'height': 2,
+    'width': 3,
+    'channels': 4,
+}
+
+DIM_PT = {
+    'batch': 0,
+    'channels': 1,
+    'depth': 2,
+    'height': 3,
+    'width': 4,
+}
+
+def transpose_to_pytorch(array):
+    shape = (
+        DIM_NN['batch'],
+        DIM_NN['channels'],
+        DIM_NN['depth'],
+        DIM_NN['height'],
+        DIM_NN['width'],
+    )
+    array = np.transpose(array, shape)
+    return array
+
+    
+def transpose_to_niftynet(array):
+    shape = (
+        DIM_PT['batch'],
+        DIM_PT['depth'],
+        DIM_PT['height'],
+        DIM_PT['width'],
+        DIM_PT['channels'],
+    )
+    array = np.transpose(array, shape)
+    return array
+
+
+def niftynet_batch_to_torch_tensor(batch_dict):
+    window = batch_dict['image']
+    window = window[..., 0, :]  # remove time dimension
+    window = transpose_to_pytorch(window)
+    # https://discuss.pytorch.org/t/torch-from-numpy-not-support-negative-strides/3663
+    tensor = torch.from_numpy(window.copy())
+    return tensor
+
+
+def torch_logits_to_niftynet_labels(logits):
+    logits = logits.detach().cpu()
+    labels = logits.argmax(dim=DIM_PT['channels'], keepdim=True).numpy()
+    labels = labels.astype(np.uint16)
+    labels = transpose_to_niftynet(labels)
+    return labels
 
 
 def tf2pt_name(name_tf):
