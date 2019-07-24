@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from skimage.color import label2rgb
@@ -37,7 +38,7 @@ def plot_all_parameters(model, labelsize=6, kde=True, bw=None):
 
 
 def turn(s):
-    return np.fliplr(np.rot90(s))
+    return np.flipud(np.rot90(s))
 
 
 def rescale_array(array, cutoff=(2, 98)):
@@ -46,7 +47,10 @@ def rescale_array(array, cutoff=(2, 98)):
     return array
 
 
-def plot_volume(array, enhance=True):
+def plot_volume(array, enhance=True, colors_path=None, title=None):
+    """
+    Expects an isotropic-spacing volume in RAS orientation
+    """
     if array.ndim > 5:
         array = array[0]
     if array.ndim == 5:
@@ -54,19 +58,77 @@ def plot_volume(array, enhance=True):
     if enhance:
         array = rescale_array(array)
     fig, axes = plt.subplots(1, 3, figsize=(9, 5))
-    si, sj, sk = array.shape
+    si, sj, sk = array.shape[:3]
     slices = [
         array[si//2, ...],
-        array[:, sj//2, :],
-        array[..., sk//2],
+        array[:, sj//2, ...],
+        array[:, :, sk//2, ...],
     ]
-    cmap = 'gray' if array.ndim == 3 else 'none'
-    for i, slice_ in enumerate(slices):
-        axis = axes[i]
+    if colors_path is not None:
+        color_table = ColorTable(colors_path)
+        slices = [color_table.colorize(s) for s in slices]
+    cmap = 'gray' if array.ndim == 3 else None
+    labels = ('AS', 'RS', 'RA')
+    for (slice_, axis, label) in zip(slices, axes, labels):
         axis.imshow(turn(slice_), cmap=cmap)
         axis.grid(False)
+        axis.invert_xaxis()
+        axis.invert_yaxis()
+        x, y = label
+        axis.set_xlabel(x)
+        axis.set_ylabel(y)
+    if title is not None:
+        fig.suptitle(title)
     plt.tight_layout()
 
     
-def plot_histogram(array, kde=True):
+def plot_histogram(array, kde=True, ylim=None, labels=False):
     sns.distplot(array.ravel(), kde=kde)
+    if ylim is not None:
+        plt.ylim(ylim)
+    if labels:
+        plt.xlabel('Intensity')
+        plt.ylabel('Count')
+
+
+class ColorTable:
+    def __init__(self, colors_path):
+        self.df = self.read_color_table(colors_path)
+    
+    def read_color_table(self, colors_path):
+        df = pd.read_csv(
+            colors_path,
+            sep=' ',
+            header=None,
+            names=[
+                'Label',
+                'Name',
+                'R',
+                'G',
+                'B',
+                'A',
+            ],
+            index_col='Label'
+        )
+        return df
+    
+    def get_color(self, label):
+        """
+        There must be nicer ways of doing this
+        """
+        try:
+            rgb = (
+                self.df.loc[label].R,
+                self.df.loc[label].G,
+                self.df.loc[label].B,
+            )
+        except KeyError:
+            rgb = 0, 0, 0
+        return rgb
+    
+    def colorize(self, label_map):
+        rgb = np.stack(3 * [label_map], axis=-1)
+        for label in np.unique(label_map):
+            mask = label_map == label
+            rgb[mask] = self.get_color(label)
+        return rgb

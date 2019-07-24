@@ -25,6 +25,10 @@ DIM_PT = {
 }
 
 def transpose_to_pytorch(array):
+    """
+    See docs of torch.nn.Conv3d
+    https://pytorch.org/docs/stable/nn.html#conv3d
+    """
     shape = (
         DIM_NN['batch'],
         DIM_NN['channels'],
@@ -36,7 +40,11 @@ def transpose_to_pytorch(array):
     return array
 
     
-def transpose_to_niftynet(array):
+def transpose_to_tensorflow(array):
+    """
+    See docs of tf.nn.conv3d
+    https://www.tensorflow.org/api_docs/python/tf/nn/conv3d#args
+    """
     shape = (
         DIM_PT['batch'],
         DIM_PT['depth'],
@@ -61,7 +69,7 @@ def torch_logits_to_niftynet_labels(logits):
     logits = logits.detach().cpu()
     labels = logits.argmax(dim=DIM_PT['channels'], keepdim=True).numpy()
     labels = labels.astype(np.uint16)
-    labels = transpose_to_niftynet(labels)
+    labels = transpose_to_tensorflow(labels)
     return labels
 
 
@@ -141,7 +149,11 @@ def is_not_valid(variable_name, shape):
     return any(exclusion_criteria)
 
 
-def checkpoint_to_state_dict(checkpoint_path, filter_variables=True):
+"""
+This last couple of functions are a good remainder to myself that
+TensorFlow makes me sad and PyTorch makes me happy
+"""
+def checkpoint_to_state_dict_(checkpoint_path, csv_path, state_dict_path, filter_variables=True):
     tf.reset_default_graph()
 
     rows = []
@@ -168,4 +180,20 @@ def checkpoint_to_state_dict(checkpoint_path, filter_variables=True):
             name = name.replace('HighRes3DNet/', '')
             state_dict[name] = torch.tensor(array)
     
-    return data_frame, state_dict
+    data_frame.to_csv(csv_path)
+    torch.save(state_dict, state_dict_path)
+
+
+def checkpoint_to_state_dict(*args, **kwargs):
+    """
+    https://stackoverflow.com/a/44842044/3956024
+    """
+    import multiprocessing
+    p = multiprocessing.Process(
+        target=checkpoint_to_state_dict_,
+        args=args,
+        kwargs=kwargs,
+    )
+    p.start()
+    p.join()
+    
