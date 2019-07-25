@@ -4,7 +4,6 @@ from collections import OrderedDict
 import torch
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 import tensorflow as tf
 
 
