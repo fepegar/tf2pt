@@ -1,4 +1,3 @@
-tensorflow-gpu==1.10.0
 niftynet
 scikit-image
 matplotlib
