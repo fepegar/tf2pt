@@ -1,9 +1,7 @@
-niftynet
 scikit-image
 matplotlib
+seaborn
 pandas
 nibabel
 torch
-torchsummary
 highresnet
-seaborn
