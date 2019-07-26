@@ -1,3 +1,5 @@
+tensorflow-gpu==1.10
+niftynet
 scikit-image
 matplotlib
 seaborn

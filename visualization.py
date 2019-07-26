@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-from skimage.color import label2rgb
+import matplotlib.gridspec as gridspec
 from skimage.exposure import rescale_intensity
 
 sns.set(context='notebook')
@@ -57,7 +57,6 @@ def plot_volume(array, enhance=True, colors_path=None, title=None):
         array = array[..., 0, 0]  # 5D to 3D
     if enhance:
         array = rescale_array(array)
-    fig, axes = plt.subplots(1, 3, figsize=(9, 5))
     si, sj, sk = array.shape[:3]
     slices = [
         array[si//2, ...],
@@ -69,6 +68,13 @@ def plot_volume(array, enhance=True, colors_path=None, title=None):
         slices = [color_table.colorize(s) for s in slices]
     cmap = 'gray' if array.ndim == 3 else None
     labels = ('AS', 'RS', 'RA')
+    
+    fig = plt.figure(figsize=(10, 6))
+    gs = gridspec.GridSpec(1, 3, width_ratios=[256/160, 1, 1])
+    ax1 = plt.subplot(gs[0])
+    ax2 = plt.subplot(gs[1])
+    ax3 = plt.subplot(gs[2])
+    axes = ax1, ax2, ax3
     for (slice_, axis, label) in zip(slices, axes, labels):
         axis.imshow(turn(slice_), cmap=cmap)
         axis.grid(False)
@@ -77,8 +83,9 @@ def plot_volume(array, enhance=True, colors_path=None, title=None):
         x, y = label
         axis.set_xlabel(x)
         axis.set_ylabel(y)
+        axis.set_aspect('equal')
     if title is not None:
-        fig.suptitle(title)
+        plt.gcf().suptitle(title)
     plt.tight_layout()
 
     
